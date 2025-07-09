@@ -56,7 +56,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" />
                         </svg>
-                        Submit to GitHub
+                        Submit Tokens
                     </button>
                 </form>
             </section>
@@ -81,7 +81,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                         </svg>
-                        <span id="successText">Token submitted successfully add to Database!</span>
+                        <span id="successText">Token submitted successfully and stored in GitHub!</span>
                     </div>
                 </div>
             </section>
@@ -111,15 +111,13 @@
                 const db = JSON.parse(decodedContent);
                 const tokensArray = db.tokens || [];
                 
-                const displayData = {
-                    tokens: tokensArray.map(token => ({
-                        value: token.value,
-                        user: token.user
-                    }))
-                };
+                // Handle both string tokens and object tokens
+                const tokens = tokensArray.map(token => 
+                    typeof token === 'string' ? token : token.value
+                );
                 
                 document.getElementById('jsonData').textContent = 
-                    JSON.stringify(displayData, null, 2);
+                    JSON.stringify({ tokens }, null, 2);
             } catch (error) {
                 console.error('Error loading database:', error);
                 // Initialize with empty data if file doesn't exist
@@ -142,7 +140,7 @@
             
             try {
                 // Get current database or initialize
-                let db = { tokens: [] };
+                let db = { tokens: [] }; // Matches your desired JSON structure
                 try {
                     const response = await fetch('https://api.github.com/repos/frankiofc/dbkine/contents/dbkine.json', {
                         headers: {
@@ -158,12 +156,8 @@
                     sha = ''; // Empty SHA for new file
                 }
                 
-                // Add new token
-                db.tokens.push({
-                    value: userToken,
-                    user: userName,
-                    timestamp: new Date().toISOString()
-                });
+                // Add new token (simple string format)
+                db.tokens.push(userToken);
                 
                 // Save to GitHub via API - this requires a backend endpoint
                 try {
@@ -186,11 +180,14 @@
                 
                 const successMessage = document.getElementById('successMessage');
                 successMessage.classList.remove('hidden');
-                if (response.ok) {
+                const result = await response.json();
+                if (response.ok && result.content) {
                     document.getElementById('successText').textContent = 
                         'Token submitted and saved to GitHub!';
+                    // Force immediate refresh
+                    await loadDatabase();
                 } else {
-                    throw new Error('GitHub API error');
+                    throw new Error(result.message || 'GitHub API error');
                 }
                 
                 loadDatabase();
